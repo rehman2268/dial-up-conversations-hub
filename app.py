@@ -1,11 +1,5 @@
 
-from fastapi import FastAPI, HTTPException, Depends, Request, Form
-from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
-from typing import List, Optional
+from flask import Flask, render_template, redirect, url_for, request, jsonify
 import os
 from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse
@@ -13,7 +7,6 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 import uuid
-from flask import Flask, render_template, redirect, url_for, request, jsonify
 
 # Load environment variables
 load_dotenv()
