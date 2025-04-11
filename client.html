@@ -1,0 +1,598 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twilio Dialer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twilio-client/1.14.0/twilio.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <header class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">Twilio Dialer</h1>
+            <div class="text-sm">Agent: Demo User</div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-6">
+        <div class="grid md:grid-cols-3 gap-6">
+            <!-- Call History Section -->
+            <div class="md:col-span-1">
+                <div class="bg-white rounded-lg shadow p-4">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 3h5m0 0v5m0-5l-6 6M8 21H3m0 0v-5m0 5l6-6" />
+                        </svg>
+                        Call History
+                    </h2>
+                    <div class="tabs flex border-b mb-4">
+                        <button class="tab-button py-2 px-4 font-medium text-blue-600 border-b-2 border-blue-600" data-tab="all">All</button>
+                        <button class="tab-button py-2 px-4 font-medium text-gray-500" data-tab="inbound">Inbound</button>
+                        <button class="tab-button py-2 px-4 font-medium text-gray-500" data-tab="outbound">Outbound</button>
+                    </div>
+                    <div id="callHistory" class="space-y-2 max-h-80 overflow-y-auto">
+                        <div class="text-center text-gray-500 py-4">Loading call history...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dialer Section -->
+            <div class="md:col-span-2">
+                <div id="activeCallContainer" class="bg-white rounded-lg shadow p-6 mb-6 hidden">
+                    <div class="text-center">
+                        <h3 id="activeCallNumber" class="text-xl font-semibold"></h3>
+                        <div class="flex items-center justify-center mt-2">
+                            <span id="callStatus" class="text-green-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                                In Progress
+                            </span>
+                        </div>
+                        <div id="callTimer" class="mt-2 text-sm text-gray-500">00:00</div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-4 mt-6">
+                        <button id="muteBtn" class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                            <span class="mt-1 text-sm">Mute</span>
+                        </button>
+                        <button id="holdBtn" class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-300 bg-white hover:bg-gray-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="mt-1 text-sm">Hold</span>
+                        </button>
+                        <button id="endCallBtn" class="flex flex-col items-center justify-center p-4 rounded-lg border border-red-300 bg-red-50 text-red-500 hover:bg-red-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
+                            </svg>
+                            <span class="mt-1 text-sm">End Call</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="dialerContainer" class="bg-white rounded-lg shadow p-6">
+                    <div class="tabs flex border-b mb-6">
+                        <button class="tab-button py-2 px-4 font-medium text-blue-600 border-b-2 border-blue-600" data-tab="outbound-dialer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                            </svg>
+                            Outbound
+                        </button>
+                        <button class="tab-button py-2 px-4 font-medium text-gray-500" data-tab="inbound-dialer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 3l-6 6m0 0V4m0 5h5M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
+                            </svg>
+                            Inbound
+                        </button>
+                    </div>
+
+                    <div id="outboundDialerTab" class="tab-content">
+                        <input type="text" id="phoneNumber" class="w-full p-4 text-center text-xl border rounded-lg mb-6" placeholder="Enter phone number">
+                        
+                        <div class="grid grid-cols-3 gap-4 mb-6">
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="1">1</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="2">2</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="3">3</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="4">4</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="5">5</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="6">6</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="7">7</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="8">8</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="9">9</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="*">*</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="0">0</button>
+                            <button class="dial-button text-2xl p-4 rounded-full bg-gray-100 hover:bg-gray-200" data-digit="#">#</button>
+                        </div>
+                        
+                        <div class="flex justify-center gap-4">
+                            <button id="clearBtn" class="h-14 w-14 rounded-full flex items-center justify-center border border-gray-300 hover:bg-gray-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                            <button id="callBtn" class="h-14 w-14 rounded-full flex items-center justify-center bg-green-500 text-white hover:bg-green-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="inboundDialerTab" class="tab-content hidden">
+                        <div class="text-center p-6">
+                            <h3 class="text-lg font-medium mb-2">Inbound Calls</h3>
+                            <p class="text-gray-500 mb-4">
+                                Your call center is ready to receive incoming calls.
+                            </p>
+                            <p class="text-sm">
+                                When someone calls your Twilio number, their call will appear here.
+                            </p>
+                            
+                            <!-- For testing purposes -->
+                            <div class="mt-8 pt-8 border-t">
+                                <h4 class="text-sm font-medium mb-2">Test Functionality</h4>
+                                <button id="simulateInboundBtn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                    Simulate Inbound Call
+                                </button>
+                                <input type="text" id="simulatePhoneNumber" class="mt-2 p-2 border rounded" placeholder="+1234567890">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Variables
+        let activeCallId = null;
+        let isMuted = false;
+        let isOnHold = false;
+        let callTimer = null;
+        let callDuration = 0;
+        
+        // API endpoint
+        const API_URL = 'http://localhost:8000';
+        
+        // DOM Elements
+        const phoneNumberInput = document.getElementById('phoneNumber');
+        const callBtn = document.getElementById('callBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const dialButtons = document.querySelectorAll('.dial-button');
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const muteBtn = document.getElementById('muteBtn');
+        const holdBtn = document.getElementById('holdBtn');
+        const endCallBtn = document.getElementById('endCallBtn');
+        const simulateInboundBtn = document.getElementById('simulateInboundBtn');
+        const simulatePhoneNumber = document.getElementById('simulatePhoneNumber');
+        
+        // Containers
+        const dialerContainer = document.getElementById('dialerContainer');
+        const activeCallContainer = document.getElementById('activeCallContainer');
+        const callHistory = document.getElementById('callHistory');
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCallHistory();
+            setInterval(loadCallHistory, 5000); // Refresh call history every 5 seconds
+        });
+        
+        // Event Listeners
+        dialButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const digit = this.getAttribute('data-digit');
+                phoneNumberInput.value += digit;
+            });
+        });
+        
+        clearBtn.addEventListener('click', function() {
+            phoneNumberInput.value = '';
+        });
+        
+        callBtn.addEventListener('click', function() {
+            const phoneNumber = phoneNumberInput.value.trim();
+            if (phoneNumber) {
+                makeCall(phoneNumber);
+            } else {
+                alert('Please enter a phone number');
+            }
+        });
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const tabId = this.getAttribute('data-tab');
+                
+                // Handle call history tabs
+                if (['all', 'inbound', 'outbound'].includes(tabId)) {
+                    tabButtons.forEach(btn => {
+                        if (['all', 'inbound', 'outbound'].includes(btn.getAttribute('data-tab'))) {
+                            btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                            btn.classList.add('text-gray-500');
+                        }
+                    });
+                    this.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                    this.classList.remove('text-gray-500');
+                    loadCallHistory(tabId);
+                }
+                
+                // Handle dialer tabs
+                if (['outbound-dialer', 'inbound-dialer'].includes(tabId)) {
+                    tabButtons.forEach(btn => {
+                        if (['outbound-dialer', 'inbound-dialer'].includes(btn.getAttribute('data-tab'))) {
+                            btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                            btn.classList.add('text-gray-500');
+                        }
+                    });
+                    this.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                    this.classList.remove('text-gray-500');
+                    
+                    document.getElementById('outboundDialerTab').classList.toggle('hidden', tabId !== 'outbound-dialer');
+                    document.getElementById('inboundDialerTab').classList.toggle('hidden', tabId !== 'inbound-dialer');
+                }
+            });
+        });
+        
+        muteBtn.addEventListener('click', function() {
+            if (!activeCallId) return;
+            
+            toggleMute();
+        });
+        
+        holdBtn.addEventListener('click', function() {
+            if (!activeCallId) return;
+            
+            toggleHold();
+        });
+        
+        endCallBtn.addEventListener('click', function() {
+            if (!activeCallId) return;
+            
+            endCall();
+        });
+        
+        simulateInboundBtn.addEventListener('click', function() {
+            const phoneNumber = simulatePhoneNumber.value.trim() || '+1234567890';
+            simulateInboundCall(phoneNumber);
+        });
+        
+        // Functions
+        async function makeCall(phoneNumber) {
+            try {
+                const response = await fetch(`${API_URL}/api/call`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ phone_number: phoneNumber })
+                });
+                
+                if (!response.ok) throw new Error('Failed to make call');
+                
+                const data = await response.json();
+                activeCallId = data.id;
+                
+                showActiveCall(data);
+                loadCallHistory();
+            } catch (error) {
+                console.error('Error making call:', error);
+                alert('Failed to make call: ' + error.message);
+            }
+        }
+        
+        async function loadCallHistory(filter = 'all') {
+            try {
+                const response = await fetch(`${API_URL}/api/calls`);
+                if (!response.ok) throw new Error('Failed to load call history');
+                
+                const calls = await response.json();
+                
+                // Filter calls if needed
+                let filteredCalls = calls;
+                if (filter === 'inbound') {
+                    filteredCalls = calls.filter(call => call.direction === 'inbound');
+                } else if (filter === 'outbound') {
+                    filteredCalls = calls.filter(call => call.direction === 'outbound');
+                }
+                
+                displayCallHistory(filteredCalls);
+            } catch (error) {
+                console.error('Error loading call history:', error);
+                callHistory.innerHTML = `<div class="text-center text-red-500 py-4">Error loading calls: ${error.message}</div>`;
+            }
+        }
+        
+        function displayCallHistory(calls) {
+            if (!calls || calls.length === 0) {
+                callHistory.innerHTML = '<div class="text-center text-gray-500 py-4">No calls found</div>';
+                return;
+            }
+            
+            const callItems = calls.map(call => {
+                const date = new Date(call.timestamp);
+                const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const formattedDuration = formatDuration(call.duration);
+                
+                let statusClass, directionIcon;
+                if (call.direction === 'inbound') {
+                    directionIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>`;
+                    statusClass = call.status === 'completed' ? 'text-green-500' : 'text-red-500';
+                } else {
+                    directionIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+                    </svg>`;
+                    statusClass = 'text-blue-500';
+                }
+                
+                return `
+                <div class="flex items-center justify-between p-2 rounded hover:bg-gray-100">
+                    <div class="flex items-center">
+                        ${directionIcon}
+                        <div class="ml-2">
+                            <p class="font-medium">${call.phone_number}</p>
+                            <div class="flex items-center text-xs text-gray-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>${formattedTime}</span>
+                                <span class="mx-1">•</span>
+                                <span>${formattedDuration}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="h-8 w-8 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200" onclick="makeCall('${call.phone_number}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                    </button>
+                </div>
+                `;
+            }).join('');
+            
+            callHistory.innerHTML = callItems;
+        }
+        
+        function showActiveCall(call) {
+            // Set call number
+            document.getElementById('activeCallNumber').textContent = call.phone_number;
+            
+            // Update status
+            const statusElement = document.getElementById('callStatus');
+            statusElement.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                ${formatCallStatus(call.status)}
+            `;
+            
+            // Show active call view
+            dialerContainer.classList.add('hidden');
+            activeCallContainer.classList.remove('hidden');
+            
+            // Start timer
+            resetCallTimer();
+            startCallTimer();
+            
+            // Reset state
+            isMuted = false;
+            isOnHold = false;
+            updateMuteButton();
+            updateHoldButton();
+        }
+        
+        function hideActiveCall() {
+            activeCallContainer.classList.add('hidden');
+            dialerContainer.classList.remove('hidden');
+            activeCallId = null;
+            stopCallTimer();
+        }
+        
+        async function endCall() {
+            if (!activeCallId) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/call/${activeCallId}/end`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error('Failed to end call');
+                
+                hideActiveCall();
+                loadCallHistory();
+            } catch (error) {
+                console.error('Error ending call:', error);
+                alert('Failed to end call: ' + error.message);
+            }
+        }
+        
+        async function toggleMute() {
+            if (!activeCallId) return;
+            
+            isMuted = !isMuted;
+            updateMuteButton();
+            
+            try {
+                const response = await fetch(`${API_URL}/api/call/${activeCallId}/mute`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ mute: isMuted })
+                });
+                
+                if (!response.ok) throw new Error('Failed to update call');
+            } catch (error) {
+                console.error('Error toggling mute:', error);
+                isMuted = !isMuted; // Revert if failed
+                updateMuteButton();
+                alert('Failed to toggle mute: ' + error.message);
+            }
+        }
+        
+        async function toggleHold() {
+            if (!activeCallId) return;
+            
+            isOnHold = !isOnHold;
+            updateHoldButton();
+            
+            try {
+                const response = await fetch(`${API_URL}/api/call/${activeCallId}/hold`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ hold: isOnHold })
+                });
+                
+                if (!response.ok) throw new Error('Failed to update call');
+                
+                // Update status in the UI
+                const statusElement = document.getElementById('callStatus');
+                statusElement.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    ${isOnHold ? 'On Hold' : 'In Progress'}
+                `;
+                
+                // Pause/resume timer
+                if (isOnHold) {
+                    stopCallTimer();
+                } else {
+                    startCallTimer();
+                }
+            } catch (error) {
+                console.error('Error toggling hold:', error);
+                isOnHold = !isOnHold; // Revert if failed
+                updateHoldButton();
+                alert('Failed to toggle hold: ' + error.message);
+            }
+        }
+        
+        async function simulateInboundCall(phoneNumber) {
+            try {
+                const response = await fetch(`${API_URL}/api/simulate/inbound-call`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ phone_number: phoneNumber })
+                });
+                
+                if (!response.ok) throw new Error('Failed to simulate inbound call');
+                
+                const data = await response.json();
+                
+                loadCallHistory();
+                alert(`Simulated inbound call from ${phoneNumber}`);
+            } catch (error) {
+                console.error('Error simulating call:', error);
+                alert('Failed to simulate call: ' + error.message);
+            }
+        }
+        
+        // Helper Functions
+        function updateMuteButton() {
+            if (isMuted) {
+                muteBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                    <span class="mt-1 text-sm">Unmute</span>
+                `;
+                muteBtn.classList.add('bg-red-50', 'text-red-500');
+            } else {
+                muteBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    <span class="mt-1 text-sm">Mute</span>
+                `;
+                muteBtn.classList.remove('bg-red-50', 'text-red-500');
+            }
+        }
+        
+        function updateHoldButton() {
+            if (isOnHold) {
+                holdBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="mt-1 text-sm">Resume</span>
+                `;
+                holdBtn.classList.add('bg-yellow-50', 'text-yellow-500');
+            } else {
+                holdBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="mt-1 text-sm">Hold</span>
+                `;
+                holdBtn.classList.remove('bg-yellow-50', 'text-yellow-500');
+            }
+        }
+        
+        function formatCallStatus(status) {
+            const statusMap = {
+                'connecting': 'Connecting...',
+                'ringing': 'Ringing...',
+                'in-progress': 'In Progress',
+                'completed': 'Completed',
+                'failed': 'Failed',
+                'busy': 'Busy',
+                'no-answer': 'No Answer',
+                'canceled': 'Canceled',
+                'on-hold': 'On Hold'
+            };
+            
+            return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
+        }
+        
+        function formatDuration(seconds) {
+            if (!seconds || seconds === 0) return 'N/A';
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function startCallTimer() {
+            if (callTimer) return;
+            
+            callTimer = setInterval(() => {
+                callDuration++;
+                updateCallTimer();
+            }, 1000);
+        }
+        
+        function stopCallTimer() {
+            if (callTimer) {
+                clearInterval(callTimer);
+                callTimer = null;
+            }
+        }
+        
+        function resetCallTimer() {
+            callDuration = 0;
+            updateCallTimer();
+        }
+        
+        function updateCallTimer() {
+            const minutes = Math.floor(callDuration / 60);
+            const seconds = callDuration % 60;
+            document.getElementById('callTimer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Expose some functions for onclick handlers
+        window.makeCall = makeCall;
+    </script>
+</body>
+</html>

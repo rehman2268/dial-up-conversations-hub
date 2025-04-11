@@ -1,73 +1,86 @@
-# Welcome to your Lovable project
 
-## Project info
+# Twilio Dialer API
 
-**URL**: https://lovable.dev/projects/c6466977-fb05-42d6-80c5-9a11e545225f
+A Python FastAPI application for making and receiving phone calls using Twilio.
 
-## How can I edit this code?
+## Setup
 
-There are several ways of editing your application.
+1. Clone this repository
+2. Create a virtual environment:
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+4. Set up your Twilio account:
+   - Sign up for a Twilio account at https://www.twilio.com
+   - Get your Account SID and Auth Token from the Twilio dashboard
+   - Purchase a Twilio phone number with voice capabilities
 
-**Use Lovable**
+5. Update the `.env` file with your Twilio credentials:
+   ```
+   TWILIO_ACCOUNT_SID=your_account_sid_here
+   TWILIO_AUTH_TOKEN=your_auth_token_here
+   TWILIO_PHONE_NUMBER=your_twilio_phone_number_here
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c6466977-fb05-42d6-80c5-9a11e545225f) and start prompting.
+6. Start the application:
+   ```
+   python app.py
+   ```
+   Or with uvicorn directly:
+   ```
+   uvicorn app:app --reload
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+7. The API will be available at http://localhost:8000
+   - API documentation is at http://localhost:8000/docs
 
-**Use your preferred IDE**
+## Features
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Make outbound calls with Twilio
+- Receive inbound calls
+- View call history
+- Control active calls (mute, hold, end)
+- Simulate inbound calls for testing
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## API Endpoints
 
-Follow these steps:
+- `GET /` - Check if API is running
+- `GET /health` - Health check endpoint
+- `POST /api/call` - Make an outbound call
+- `GET /api/calls` - Get call history
+- `POST /api/call/{call_id}/end` - End an active call
+- `POST /api/call/{call_id}/mute` - Mute/unmute a call
+- `POST /api/call/{call_id}/hold` - Put call on hold/resume
+- `POST /api/simulate/inbound-call` - Simulate an inbound call (for testing)
+- `POST /api/webhook/voice` - Webhook for Twilio voice events
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Usage Examples
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### Make an outbound call
+```
+curl -X POST http://localhost:8000/api/call \
+  -H "Content-Type: application/json" \
+  -d '{"phone_number": "+1234567890"}'
 ```
 
-**Edit a file directly in GitHub**
+### Get call history
+```
+curl http://localhost:8000/api/calls
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### End a call
+```
+curl -X POST http://localhost:8000/api/call/{call_id}/end
+```
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/c6466977-fb05-42d6-80c5-9a11e545225f) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Simulate an inbound call
+```
+curl -X POST http://localhost:8000/api/simulate/inbound-call \
+  -H "Content-Type: application/json" \
+  -d '{"phone_number": "+1234567890"}'
+```
