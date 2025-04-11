@@ -10,7 +10,8 @@ export type CallStatus =
   | 'failed'
   | 'busy'
   | 'no-answer'
-  | 'canceled';
+  | 'canceled'
+  | 'missed';
 
 export interface Call {
   id: string;
