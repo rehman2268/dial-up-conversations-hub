@@ -5,388 +5,383 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Twilio Dialer</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .card {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        input {
+            width: calc(100% - 22px);
+        }
+        button {
+            background-color: #0066ff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            min-width: 100px;
+        }
+        button:hover {
+            background-color: #0052cc;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .keypad button {
+            padding: 15px;
+            font-size: 18px;
+            min-width: auto;
+        }
+        .call-history {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .call-history li {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .call-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .call-controls button {
+            flex: 1;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        .badge-outbound {
+            background-color: #e6f7ff;
+            color: #0066cc;
+        }
+        .badge-inbound {
+            background-color: #f6ffed;
+            color: #52c41a;
+        }
+        .badge-initiated, .badge-ringing {
+            background-color: #fff7e6;
+            color: #fa8c16;
+        }
+        .badge-in-progress {
+            background-color: #e6f7ff;
+            color: #1890ff;
+        }
+        .badge-completed {
+            background-color: #f9f0ff;
+            color: #722ed1;
+        }
+        .badge-on-hold {
+            background-color: #fff1f0;
+            color: #f5222d;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <header class="bg-white shadow rounded-lg mb-6 p-4">
-            <h1 class="text-2xl font-bold text-gray-800">Twilio Dialer</h1>
-        </header>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Dialer Section -->
-            <div class="bg-white shadow rounded-lg p-6">
-                <h2 class="text-xl font-semibold mb-4">Make a Call</h2>
-                <div class="mb-4">
-                    <label for="phone-number" class="block text-gray-700 mb-2">Phone Number</label>
-                    <input type="tel" id="phone-number" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="(555) 123-4567">
-                </div>
-                <button id="call-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                    Call
-                </button>
+<body>
+    <h1>Twilio Dialer Application</h1>
+    
+    <div class="container">
+        <div class="card">
+            <h2>Dialer</h2>
+            <input type="tel" id="phone-number" placeholder="Enter phone number">
+            <div class="keypad">
+                <button onclick="appendToPhone('1')">1</button>
+                <button onclick="appendToPhone('2')">2</button>
+                <button onclick="appendToPhone('3')">3</button>
+                <button onclick="appendToPhone('4')">4</button>
+                <button onclick="appendToPhone('5')">5</button>
+                <button onclick="appendToPhone('6')">6</button>
+                <button onclick="appendToPhone('7')">7</button>
+                <button onclick="appendToPhone('8')">8</button>
+                <button onclick="appendToPhone('9')">9</button>
+                <button onclick="appendToPhone('*')">*</button>
+                <button onclick="appendToPhone('0')">0</button>
+                <button onclick="appendToPhone('#')">#</button>
             </div>
-
-            <!-- Active Call Section (initially hidden) -->
-            <div id="active-call" class="bg-white shadow rounded-lg p-6 hidden">
-                <h2 class="text-xl font-semibold mb-4">Active Call</h2>
-                <div class="mb-4">
-                    <p>Connected to: <span id="active-call-number" class="font-semibold"></span></p>
-                    <p>Status: <span id="call-status" class="font-semibold">In progress</span></p>
-                    <p>Duration: <span id="call-duration" class="font-semibold">00:00</span></p>
-                </div>
-                <div class="flex space-x-2">
-                    <button id="mute-button" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                        Mute
-                    </button>
-                    <button id="hold-button" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                        Hold
-                    </button>
-                    <button id="end-call-button" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                        End
-                    </button>
-                </div>
+            <div style="margin-top: 15px;">
+                <button id="call-button" onclick="makeCall()">Call</button>
+                <button onclick="simulateIncomingCall()">Simulate Incoming Call</button>
             </div>
-
-            <!-- Call History Section -->
-            <div class="bg-white shadow rounded-lg p-6 md:col-span-2">
-                <h2 class="text-xl font-semibold mb-4">Call History</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full table-auto">
-                        <thead>
-                            <tr class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-                                <th class="py-3 px-6 text-left">Phone Number</th>
-                                <th class="py-3 px-6 text-left">Direction</th>
-                                <th class="py-3 px-6 text-left">Status</th>
-                                <th class="py-3 px-6 text-left">Duration</th>
-                                <th class="py-3 px-6 text-left">Timestamp</th>
-                            </tr>
-                        </thead>
-                        <tbody id="call-history" class="text-gray-600 text-sm">
-                            <!-- Call history will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
+        </div>
+        
+        <div class="card">
+            <h2>Active Call</h2>
+            <div id="active-call-container">
+                <p>No active call</p>
             </div>
+        </div>
+        
+        <div class="card">
+            <h2>Call History</h2>
+            <ul class="call-history" id="call-history">
+                <li>No recent calls</li>
+            </ul>
         </div>
     </div>
 
     <script>
-        // Utility functions
-        function formatPhoneNumber(input) {
-            const cleaned = input.replace(/\D/g, '');
-            let formatted = cleaned;
-            
-            if (cleaned.length > 0) {
-                if (cleaned.length <= 3) {
-                    formatted = `(${cleaned}`;
-                } else if (cleaned.length <= 6) {
-                    formatted = `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
-                } else {
-                    formatted = `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-                }
+        let activeCall = null;
+
+        // Fetch call history on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchCallHistory();
+        });
+
+        // Append digit to phone input
+        function appendToPhone(digit) {
+            const phoneInput = document.getElementById('phone-number');
+            phoneInput.value += digit;
+        }
+
+        // Make an outbound call
+        async function makeCall() {
+            const phoneNumber = document.getElementById('phone-number').value;
+            if (!phoneNumber) {
+                alert('Please enter a phone number');
+                return;
             }
-            
-            return formatted;
-        }
 
-        // Format timestamps to a more readable format
-        function formatTimestamp(isoString) {
-            const date = new Date(isoString);
-            return date.toLocaleString();
-        }
-
-        // Format duration in seconds to MM:SS
-        function formatDuration(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        // Call API functions
-        async function makeCall(phoneNumber) {
             try {
                 const response = await fetch('/api/call', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ phone_number: phoneNumber }),
+                    body: JSON.stringify({ phone_number: phoneNumber })
                 });
-                
+
                 if (!response.ok) {
-                    throw new Error('Failed to make call');
+                    throw new Error('Failed to initiate call');
                 }
-                
-                const data = await response.json();
-                return data;
+
+                const callData = await response.json();
+                activeCall = callData;
+                updateActiveCallDisplay();
+                await fetchCallHistory();
             } catch (error) {
                 console.error('Error making call:', error);
-                alert('Failed to make call. Please check console for details.');
-                return null;
+                alert('Error making call: ' + error.message);
             }
         }
 
-        async function getCallHistory() {
+        // Simulate an incoming call
+        async function simulateIncomingCall() {
+            try {
+                // Use the current phone number or a default one
+                const phoneNumber = document.getElementById('phone-number').value || '+15551234567';
+                
+                const response = await fetch('/api/simulate/inbound-call', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ phone_number: phoneNumber })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to simulate incoming call');
+                }
+
+                const callData = await response.json();
+                await fetchCallHistory();
+                alert(`Incoming call from ${callData.phone_number} simulated`);
+            } catch (error) {
+                console.error('Error simulating call:', error);
+                alert('Error simulating call: ' + error.message);
+            }
+        }
+
+        // Fetch call history
+        async function fetchCallHistory() {
             try {
                 const response = await fetch('/api/calls');
-                
                 if (!response.ok) {
                     throw new Error('Failed to fetch call history');
                 }
+
+                const callHistory = await response.json();
+                updateCallHistoryDisplay(callHistory);
                 
-                const data = await response.json();
-                return data;
+                // Check if there's an active call
+                const activeCalls = callHistory.filter(call => 
+                    call.status === 'initiated' || 
+                    call.status === 'ringing' || 
+                    call.status === 'in-progress' ||
+                    call.status === 'on-hold'
+                );
+                
+                if (activeCalls.length > 0 && !activeCall) {
+                    activeCall = activeCalls[0];
+                    updateActiveCallDisplay();
+                }
             } catch (error) {
                 console.error('Error fetching call history:', error);
-                return [];
             }
         }
 
-        async function endCall(callId) {
+        // Update call history display
+        function updateCallHistoryDisplay(callHistory) {
+            const historyContainer = document.getElementById('call-history');
+            
+            if (callHistory.length === 0) {
+                historyContainer.innerHTML = '<li>No recent calls</li>';
+                return;
+            }
+            
+            // Sort call history by timestamp (newest first)
+            callHistory.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            historyContainer.innerHTML = callHistory.map(call => {
+                const time = new Date(call.timestamp).toLocaleTimeString();
+                return `
+                    <li>
+                        ${call.phone_number} 
+                        <span class="badge badge-${call.direction}">${call.direction}</span>
+                        <span class="badge badge-${call.status}">${call.status}</span>
+                        <br>
+                        <small>${time}</small>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        // Update active call display
+        function updateActiveCallDisplay() {
+            const container = document.getElementById('active-call-container');
+            
+            if (!activeCall || activeCall.status === 'completed') {
+                container.innerHTML = '<p>No active call</p>';
+                activeCall = null;
+                return;
+            }
+            
+            container.innerHTML = `
+                <p>Call with ${activeCall.phone_number}</p>
+                <p>Status: <span class="badge badge-${activeCall.status}">${activeCall.status}</span></p>
+                <div class="call-controls">
+                    <button onclick="handleMuteCall()">${activeCall.muted ? 'Unmute' : 'Mute'}</button>
+                    <button onclick="handleHoldCall()">${activeCall.status === 'on-hold' ? 'Resume' : 'Hold'}</button>
+                    <button onclick="handleEndCall()">End Call</button>
+                </div>
+            `;
+        }
+
+        // Handle ending a call
+        async function handleEndCall() {
+            if (!activeCall) return;
+            
             try {
-                const response = await fetch(`/api/call/${callId}/end`, {
-                    method: 'POST',
+                const response = await fetch(`/api/call/${activeCall.id}/end`, {
+                    method: 'POST'
                 });
                 
                 if (!response.ok) {
                     throw new Error('Failed to end call');
                 }
                 
-                return true;
+                activeCall.status = 'completed';
+                updateActiveCallDisplay();
+                await fetchCallHistory();
             } catch (error) {
                 console.error('Error ending call:', error);
-                return false;
+                alert('Error ending call: ' + error.message);
             }
         }
 
-        async function toggleMute(callId, mute) {
+        // Handle muting a call
+        async function handleMuteCall() {
+            if (!activeCall) return;
+            
+            const shouldMute = !activeCall.muted;
+            
             try {
-                const response = await fetch(`/api/call/${callId}/mute`, {
+                const response = await fetch(`/api/call/${activeCall.id}/mute`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ mute }),
+                    body: JSON.stringify({ mute: shouldMute })
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Failed to toggle mute');
+                    throw new Error('Failed to update call');
                 }
                 
-                return true;
+                activeCall.muted = shouldMute;
+                updateActiveCallDisplay();
             } catch (error) {
-                console.error('Error toggling mute:', error);
-                return false;
+                console.error('Error updating call:', error);
+                alert('Error updating call: ' + error.message);
             }
         }
 
-        async function toggleHold(callId, hold) {
+        // Handle putting a call on hold
+        async function handleHoldCall() {
+            if (!activeCall) return;
+            
+            const shouldHold = activeCall.status !== 'on-hold';
+            
             try {
-                const response = await fetch(`/api/call/${callId}/hold`, {
+                const response = await fetch(`/api/call/${activeCall.id}/hold`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ hold }),
+                    body: JSON.stringify({ hold: shouldHold })
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Failed to toggle hold');
+                    throw new Error('Failed to update call');
                 }
                 
-                return true;
+                activeCall.status = shouldHold ? 'on-hold' : 'in-progress';
+                updateActiveCallDisplay();
+                await fetchCallHistory();
             } catch (error) {
-                console.error('Error toggling hold:', error);
-                return false;
+                console.error('Error updating call:', error);
+                alert('Error updating call: ' + error.message);
             }
         }
 
-        // DOM elements
-        const phoneNumberInput = document.getElementById('phone-number');
-        const callButton = document.getElementById('call-button');
-        const activeCallSection = document.getElementById('active-call');
-        const activeCallNumber = document.getElementById('active-call-number');
-        const callStatus = document.getElementById('call-status');
-        const callDuration = document.getElementById('call-duration');
-        const muteButton = document.getElementById('mute-button');
-        const holdButton = document.getElementById('hold-button');
-        const endCallButton = document.getElementById('end-call-button');
-        const callHistoryTable = document.getElementById('call-history');
-
-        // State variables
-        let activeCall = null;
-        let durationInterval = null;
-        let durationSeconds = 0;
-        let isMuted = false;
-        let isOnHold = false;
-
-        // Event listeners
-        phoneNumberInput.addEventListener('input', (event) => {
-            event.target.value = formatPhoneNumber(event.target.value);
-        });
-
-        callButton.addEventListener('click', async () => {
-            const phoneNumber = phoneNumberInput.value;
-            if (!phoneNumber) {
-                alert('Please enter a phone number');
-                return;
-            }
-            
-            callButton.disabled = true;
-            callButton.textContent = 'Calling...';
-            
-            const call = await makeCall(phoneNumber);
-            
-            if (call) {
-                // Show active call section
-                activeCallNumber.textContent = phoneNumber;
-                callStatus.textContent = 'Connecting...';
-                activeCallSection.classList.remove('hidden');
-                
-                // Set active call
-                activeCall = call;
-                
-                // Start duration timer if call is connected
-                startDurationTimer();
-                
-                // Load updated call history
-                loadCallHistory();
-            }
-            
-            callButton.disabled = false;
-            callButton.textContent = 'Call';
-        });
-
-        muteButton.addEventListener('click', async () => {
-            if (!activeCall) return;
-            
-            isMuted = !isMuted;
-            const success = await toggleMute(activeCall.id, isMuted);
-            
-            if (success) {
-                muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
-                muteButton.classList.toggle('bg-gray-500', !isMuted);
-                muteButton.classList.toggle('bg-blue-500', isMuted);
-            }
-        });
-
-        holdButton.addEventListener('click', async () => {
-            if (!activeCall) return;
-            
-            isOnHold = !isOnHold;
-            const success = await toggleHold(activeCall.id, isOnHold);
-            
-            if (success) {
-                holdButton.textContent = isOnHold ? 'Resume' : 'Hold';
-                holdButton.classList.toggle('bg-yellow-500', !isOnHold);
-                holdButton.classList.toggle('bg-green-500', isOnHold);
-                callStatus.textContent = isOnHold ? 'On Hold' : 'In Progress';
-            }
-        });
-
-        endCallButton.addEventListener('click', async () => {
-            if (!activeCall) return;
-            
-            const success = await endCall(activeCall.id);
-            
-            if (success) {
-                stopDurationTimer();
-                activeCallSection.classList.add('hidden');
-                activeCall = null;
-                isMuted = false;
-                isOnHold = false;
-                durationSeconds = 0;
-                resetCallControls();
-                loadCallHistory();
-            }
-        });
-
-        // Functions for managing the active call
-        function startDurationTimer() {
-            stopDurationTimer(); // Clear any existing interval
-            durationSeconds = 0;
-            callDuration.textContent = formatDuration(durationSeconds);
-            
-            durationInterval = setInterval(() => {
-                durationSeconds++;
-                callDuration.textContent = formatDuration(durationSeconds);
-            }, 1000);
-        }
-
-        function stopDurationTimer() {
-            if (durationInterval) {
-                clearInterval(durationInterval);
-                durationInterval = null;
-            }
-        }
-
-        function resetCallControls() {
-            muteButton.textContent = 'Mute';
-            muteButton.classList.remove('bg-blue-500');
-            muteButton.classList.add('bg-gray-500');
-            
-            holdButton.textContent = 'Hold';
-            holdButton.classList.remove('bg-green-500');
-            holdButton.classList.add('bg-yellow-500');
-            
-            callStatus.textContent = 'In Progress';
-        }
-
-        // Load and display call history
-        async function loadCallHistory() {
-            const history = await getCallHistory();
-            
-            // Clear existing history
-            callHistoryTable.innerHTML = '';
-            
-            // Add history items
-            history.forEach(call => {
-                const row = document.createElement('tr');
-                row.className = 'border-b border-gray-200 hover:bg-gray-100';
-                
-                row.innerHTML = `
-                    <td class="py-3 px-6 text-left">${call.phone_number}</td>
-                    <td class="py-3 px-6 text-left capitalize">${call.direction}</td>
-                    <td class="py-3 px-6 text-left capitalize">${call.status}</td>
-                    <td class="py-3 px-6 text-left">${formatDuration(call.duration)}</td>
-                    <td class="py-3 px-6 text-left">${formatTimestamp(call.timestamp)}</td>
-                `;
-                
-                callHistoryTable.appendChild(row);
-            });
-        }
-
-        // Initial call history load
-        loadCallHistory();
-
-        // For testing: simulate an inbound call
-        async function simulateInboundCall(phoneNumber) {
-            try {
-                const response = await fetch('/api/simulate/inbound-call', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ phone_number: phoneNumber }),
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to simulate inbound call');
-                }
-                
-                const data = await response.json();
-                loadCallHistory();
-                return data;
-            } catch (error) {
-                console.error('Error simulating inbound call:', error);
-                return null;
-            }
-        }
-
-        // Uncomment this to test the inbound call simulation
-        // setTimeout(() => {
-        //     simulateInboundCall("(555) 987-6543");
-        // }, 5000);
+        // Refresh call history periodically
+        setInterval(fetchCallHistory, 5000);
     </script>
 </body>
 </html>
