@@ -1,7 +1,7 @@
 
-# Twilio Dialer API
+# Twilio Dialer Application
 
-A Python FastAPI application for making and receiving phone calls using Twilio.
+A Flask web application for making and receiving phone calls using Twilio.
 
 ## Setup
 
@@ -31,13 +31,8 @@ A Python FastAPI application for making and receiving phone calls using Twilio.
    ```
    python app.py
    ```
-   Or with uvicorn directly:
-   ```
-   uvicorn app:app --reload
-   ```
 
-7. The API will be available at http://localhost:8000
-   - API documentation is at http://localhost:8000/docs
+7. The application will be available at http://localhost:8000
 
 ## Features
 
@@ -49,7 +44,7 @@ A Python FastAPI application for making and receiving phone calls using Twilio.
 
 ## API Endpoints
 
-- `GET /` - Check if API is running
+- `GET /` - Main application interface
 - `GET /health` - Health check endpoint
 - `POST /api/call` - Make an outbound call
 - `GET /api/calls` - Get call history
@@ -58,29 +53,3 @@ A Python FastAPI application for making and receiving phone calls using Twilio.
 - `POST /api/call/{call_id}/hold` - Put call on hold/resume
 - `POST /api/simulate/inbound-call` - Simulate an inbound call (for testing)
 - `POST /api/webhook/voice` - Webhook for Twilio voice events
-
-## Usage Examples
-
-### Make an outbound call
-```
-curl -X POST http://localhost:8000/api/call \
-  -H "Content-Type: application/json" \
-  -d '{"phone_number": "+1234567890"}'
-```
-
-### Get call history
-```
-curl http://localhost:8000/api/calls
-```
-
-### End a call
-```
-curl -X POST http://localhost:8000/api/call/{call_id}/end
-```
-
-### Simulate an inbound call
-```
-curl -X POST http://localhost:8000/api/simulate/inbound-call \
-  -H "Content-Type: application/json" \
-  -d '{"phone_number": "+1234567890"}'
-```

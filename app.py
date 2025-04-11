@@ -13,20 +13,12 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 import uuid
+from flask import Flask, render_template, redirect, url_for, request, jsonify
 
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title="Twilio Dialer API")
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Specify the allowed origins for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = Flask(__name__)
 
 # Get Twilio credentials from environment variables
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -44,37 +36,27 @@ except Exception as e:
 # In production, use a database
 call_history = []
 
-# Data models
-class CallRequest(BaseModel):
-    phone_number: str
-    
-class Call(BaseModel):
-    id: str
-    phone_number: str
-    direction: str  # "inbound" or "outbound"
-    status: str
-    duration: int = 0
-    timestamp: datetime
-    notes: Optional[str] = None
-
 # Routes
-@app.get("/")
-async def root():
-    return {"message": "Twilio Dialer API is running"}
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "healthy"})
 
-@app.post("/api/call", response_model=Call)
-async def make_call(call_request: CallRequest):
+@app.route('/api/call', methods=['POST'])
+def make_call():
     """Make an outbound call using Twilio"""
     if not twilio_client:
-        raise HTTPException(status_code=500, detail="Twilio client not initialized")
+        return jsonify({"error": "Twilio client not initialized"}), 500
     
     try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        
         # Format the phone number (remove any non-digits)
-        formatted_number = ''.join(filter(str.isdigit, call_request.phone_number))
+        formatted_number = ''.join(filter(str.isdigit, phone_number))
         
         # Ensure the number has proper formatting (+1 for US)
         if not formatted_number.startswith('+'):
@@ -91,31 +73,31 @@ async def make_call(call_request: CallRequest):
         )
         
         # Create a call record
-        call_record = Call(
-            id=call.sid,
-            phone_number=call_request.phone_number,
-            direction="outbound",
-            status="initiated",
-            duration=0,
-            timestamp=datetime.now()
-        )
+        call_record = {
+            "id": call.sid,
+            "phone_number": phone_number,
+            "direction": "outbound",
+            "status": "initiated",
+            "duration": 0,
+            "timestamp": datetime.now().isoformat()
+        }
         
         # Add to call history
-        call_history.append(call_record.dict())
+        call_history.append(call_record)
         
-        return call_record
+        return jsonify(call_record)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error making call: {str(e)}")
+        return jsonify({"error": f"Error making call: {str(e)}"}), 500
 
-@app.get("/api/calls", response_model=List[Call])
-async def get_call_history():
+@app.route('/api/calls', methods=['GET'])
+def get_call_history():
     """Get call history"""
-    return call_history
+    return jsonify(call_history)
 
-@app.post("/api/webhook/voice")
-async def voice_webhook(request: Request):
+@app.route('/api/webhook/voice', methods=['POST'])
+def voice_webhook():
     """Handle Twilio voice webhook"""
-    form_data = await request.form()
+    form_data = request.form
     
     # Create TwiML response
     response = VoiceResponse()
@@ -127,23 +109,23 @@ async def voice_webhook(request: Request):
     call_sid = form_data.get("CallSid")
     if call_sid and form_data.get("Direction") == "inbound":
         # Create a new call record for inbound calls
-        call_record = Call(
-            id=call_sid,
-            phone_number=form_data.get("From", "unknown"),
-            direction="inbound",
-            status="in-progress",
-            duration=0,
-            timestamp=datetime.now()
-        )
-        call_history.append(call_record.dict())
+        call_record = {
+            "id": call_sid,
+            "phone_number": form_data.get("From", "unknown"),
+            "direction": "inbound",
+            "status": "in-progress",
+            "duration": 0,
+            "timestamp": datetime.now().isoformat()
+        }
+        call_history.append(call_record)
     
-    return HTMLResponse(content=str(response), status_code=200)
+    return str(response)
 
-@app.post("/api/call/{call_id}/end")
-async def end_call(call_id: str):
+@app.route('/api/call/<call_id>/end', methods=['POST'])
+def end_call(call_id):
     """End an active call"""
     if not twilio_client:
-        raise HTTPException(status_code=500, detail="Twilio client not initialized")
+        return jsonify({"error": "Twilio client not initialized"}), 500
     
     try:
         # End the call through Twilio API
@@ -155,32 +137,38 @@ async def end_call(call_id: str):
                 call_record["status"] = "completed"
                 break
         
-        return {"status": "success", "message": "Call ended successfully"}
+        return jsonify({"status": "success", "message": "Call ended successfully"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error ending call: {str(e)}")
+        return jsonify({"error": f"Error ending call: {str(e)}"}), 500
 
-@app.post("/api/call/{call_id}/mute")
-async def mute_call(call_id: str, mute: bool = True):
+@app.route('/api/call/<call_id>/mute', methods=['POST'])
+def mute_call(call_id):
     """Mute or unmute an active call"""
     if not twilio_client:
-        raise HTTPException(status_code=500, detail="Twilio client not initialized")
+        return jsonify({"error": "Twilio client not initialized"}), 500
     
     try:
+        data = request.get_json()
+        mute = data.get('mute', True)
+        
         # Update call through Twilio API
         call = twilio_client.calls(call_id).update(muted=mute)
         
         action = "muted" if mute else "unmuted"
-        return {"status": "success", "message": f"Call {action} successfully"}
+        return jsonify({"status": "success", "message": f"Call {action} successfully"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating call: {str(e)}")
+        return jsonify({"error": f"Error updating call: {str(e)}"}), 500
 
-@app.post("/api/call/{call_id}/hold")
-async def hold_call(call_id: str, hold: bool = True):
+@app.route('/api/call/<call_id>/hold', methods=['POST'])
+def hold_call(call_id):
     """Put a call on hold or resume it"""
     if not twilio_client:
-        raise HTTPException(status_code=500, detail="Twilio client not initialized")
+        return jsonify({"error": "Twilio client not initialized"}), 500
     
     try:
+        data = request.get_json()
+        hold = data.get('hold', True)
+        
         # For hold/resume functionality, you would typically use Twilio's Conference APIs
         # This is a simplified example
         status = "in-progress"
@@ -195,31 +183,33 @@ async def hold_call(call_id: str, hold: bool = True):
                 break
         
         action = "put on hold" if hold else "resumed"
-        return {"status": "success", "message": f"Call {action} successfully"}
+        return jsonify({"status": "success", "message": f"Call {action} successfully"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating call: {str(e)}")
+        return jsonify({"error": f"Error updating call: {str(e)}"}), 500
 
-@app.post("/api/simulate/inbound-call")
-async def simulate_inbound_call(call_request: CallRequest):
+@app.route('/api/simulate/inbound-call', methods=['POST'])
+def simulate_inbound_call():
     """Simulate an inbound call (for testing)"""
     try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        
         # Create a simulated inbound call record
-        call_record = Call(
-            id=str(uuid.uuid4()),
-            phone_number=call_request.phone_number,
-            direction="inbound",
-            status="ringing",
-            duration=0,
-            timestamp=datetime.now()
-        )
+        call_record = {
+            "id": str(uuid.uuid4()),
+            "phone_number": phone_number,
+            "direction": "inbound",
+            "status": "ringing",
+            "duration": 0,
+            "timestamp": datetime.now().isoformat()
+        }
         
         # Add to call history
-        call_history.append(call_record.dict())
+        call_history.append(call_record)
         
-        return call_record
+        return jsonify(call_record)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error simulating call: {str(e)}")
+        return jsonify({"error": f"Error simulating call: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    app.run(debug=True, host="0.0.0.0", port=8000)
